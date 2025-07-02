@@ -98,79 +98,126 @@ async function startBot() {
     sock = makeWASocket({
         version,
         auth: state,
-        // Desactivamos el QR automático de Baileys para manejarlo nosotros
-        printQRInTerminal: false
+        printQRInTerminal: false,
+        browser: ['WhatsApp Bot', 'Chrome', '1.0.0'],
+        connectTimeoutMs: 60000,
+        defaultQueryTimeoutMs: 0,
+        keepAliveIntervalMs: 10000,
+        generateHighQualityLinkPreview: true,
+        syncFullHistory: false,
+        markOnlineOnConnect: true
     });
 
     sock.ev.on('creds.update', saveCreds);
 
     sock.ev.on('connection.update', ({ connection, lastDisconnect, qr }) => {
         if (qr) {
-            console.log('🔑 Código QR generado para WhatsApp Web');
-            console.log('====================================');
+            console.log('🔑 ¡CÓDIGO QR GENERADO! Usa uno de estos métodos:');
+            console.log('═══════════════════════════════════════════════════════');
             
-            // Método 1: QR Terminal básico (más compatible con Railway)
             try {
-                qrcode.generate(qr, { 
-                    small: true,
-                    version: 1 
-                });
-                console.log('✅ QR mostrado arriba - Escanéalo con tu WhatsApp');
-            } catch (error) {
-                console.error('❌ Error generando QR visual:', error.message);
-                
-                // Método 2: Fallback - mostrar el código como texto
-                console.log('📱 Código QR (texto plano):');
-                console.log(qr);
+                // Método 1: QR en terminal
+                console.log('📱 OPCIÓN 1: Escanea el QR de abajo con WhatsApp');
+                qrcode.generate(qr, { small: true });
                 console.log('');
-                console.log('💡 Copia este código y úsalo en una herramienta online de QR');
-                console.log('   como: https://www.qr-code-generator.com/ o similar');
+            } catch (error) {
+                console.log('❌ No se pudo mostrar QR visual');
             }
             
-            console.log('====================================');
-            console.log('⏳ Esperando escaneo del código QR...');
+            // Método 2: Código QR como texto
+            console.log('📱 OPCIÓN 2: Copia este código y conviértelo a QR:');
+            console.log(qr);
+            console.log('');
+            console.log('🌐 Páginas para generar QR:');
+            console.log('   • https://www.qr-code-generator.com/');
+            console.log('   • https://qr.io/');
+            console.log('   • https://qrcode.tec-it.com/');
+            console.log('');
+            console.log('📖 INSTRUCCIONES:');
+            console.log('   1. Copia el código de arriba');
+            console.log('   2. Pégalo en una de las páginas web');
+            console.log('   3. Genera el QR');
+            console.log('   4. Escanéalo con WhatsApp');
+            console.log('═══════════════════════════════════════════════════════');
+            console.log('⏳ Esperando que escanees el código QR...');
         }
 
         if (connection === 'close') {
             const shouldReconnect = new Boom(lastDisconnect?.error)?.output?.statusCode !== 401;
-            console.log('❌ Conexión cerrada. ¿Reconectar?:', shouldReconnect);
+            const statusCode = new Boom(lastDisconnect?.error)?.output?.statusCode;
+            
+            console.log(`❌ Conexión cerrada. Código: ${statusCode}`);
+            console.log(`🔄 ¿Reconectar?: ${shouldReconnect}`);
             
             if (shouldReconnect) {
-                console.log('🔄 Reintentando conexión en 5 segundos...');
-                setTimeout(() => startBot(), 5000);
+                console.log('🔄 Reintentando conexión en 10 segundos...');
+                setTimeout(() => startBot(), 10000);
             } else {
-                console.log('🛑 No se puede reconectar. Posible problema de autenticación.');
-                console.log('   Elimina la carpeta "auth_info" y vuelve a intentar.');
+                console.log('🛑 No se puede reconectar - Problema de autenticación');
+                console.log('💡 SOLUCIÓN: Elimina la carpeta "auth_info" y vuelve a escanear QR');
+                
+                // Opcional: Eliminar auth_info automáticamente
+                try {
+                    const authPath = path.resolve(__dirname, 'auth_info');
+                    if (fs.existsSync(authPath)) {
+                        fs.rmSync(authPath, { recursive: true });
+                        console.log('🗑️ Carpeta auth_info eliminada automáticamente');
+                        console.log('🔄 Reiniciando para generar nuevo QR...');
+                        setTimeout(() => startBot(), 5000);
+                    }
+                } catch (err) {
+                    console.error('❌ Error al eliminar auth_info:', err.message);
+                }
             }
         } else if (connection === 'open') {
-            console.log('✅ ¡Conectado exitosamente a WhatsApp Web!');
+            console.log('✅ ¡CONECTADO EXITOSAMENTE A WHATSAPP!');
+            console.log('═══════════════════════════════════════════════════════');
             console.log(`📱 Usuario: ${sock.user.name || 'Sin nombre'}`);
             console.log(`📞 Número: ${sock.user.id.split(':')[0]}`);
-            console.log('');
+            console.log(`🌐 Plataforma: ${sock.user.platform || 'Desconocida'}`);
+            console.log('═══════════════════════════════════════════════════════');
+            console.log('🚀 Iniciando programación de mensajes...');
+            
             programarMensajes(sock);
             programarReprogramacionDiaria(sock);
-        } else if (connection) {
+            
+            console.log('✅ Bot completamente configurado y funcionando');
+        } else {
             console.log(`📡 Estado de conexión: ${connection}`);
         }
     });
 
-    // Manejo adicional de errores
+    // Manejo de errores de conexión
+    sock.ev.on('connection.error', (error) => {
+        console.error('💥 Error de conexión:', error);
+    });
+
+    // Log de mensajes recibidos (opcional, para debug)
     sock.ev.on('messages.upsert', ({ messages }) => {
-        // Opcional: log de mensajes recibidos para debug
         messages.forEach(msg => {
-            if (msg.key.fromMe) return; // Ignora mensajes propios
-            console.log(`📥 Mensaje recibido de ${msg.key.remoteJid}: ${msg.message?.conversation || '[Mensaje multimedia]'}`);
+            if (msg.key.fromMe) return;
+            const sender = msg.key.remoteJid;
+            const content = msg.message?.conversation || msg.message?.extendedTextMessage?.text || '[Multimedia]';
+            console.log(`📥 Mensaje de ${sender}: ${content}`);
         });
     });
 }
 
 // Iniciar el bot con manejo de errores
-console.log('🚀 Iniciando WhatsApp Bot para Railway...');
-console.log('⏰ Mensajes programados para 9:XX AM y 11:XX PM');
-console.log('🔄 Reprogramación automática a las 05:00 y 17:00');
-console.log('');
+console.log('🚀 INICIANDO WHATSAPP BOT PARA RAILWAY');
+console.log('══════════════════════════════════════');
+console.log('⏰ Mensajes programados: 9:XX AM y 11:XX PM');
+console.log('🔄 Reprogramación automática: 05:00 y 17:00');
+console.log('📱 Destinatarios:', destinatarios.map(n => n.replace('@s.whatsapp.net', '')));
+console.log('══════════════════════════════════════');
 
 startBot().catch(error => {
-    console.error('💥 Error fatal al iniciar el bot:', error);
-    process.exit(1);
+    console.error('💥 ERROR FATAL al iniciar el bot:', error);
+    console.log('🔄 Reintentando en 30 segundos...');
+    setTimeout(() => {
+        startBot().catch(() => {
+            console.error('💥 ERROR PERSISTENTE - Cerrando aplicación');
+            process.exit(1);
+        });
+    }, 30000);
 });
