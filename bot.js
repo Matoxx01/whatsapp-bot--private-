@@ -17,9 +17,9 @@ function obtenerFraseSegunHora() {
     const hora = new Date().getHours();
 
     let tipo;
-    if (hora > 4 && hora < 17) { // Entre 5 am y 4 pm se considera mañana
+    if (hora > 0 && hora < 13) { // Entre 5 am y 4 pm se considera mañana
         tipo = 'mañana';
-    } else if (hora >= 17 || hora <= 4) { // Entre 5 pm y 4 am se considera noche
+    } else if (hora >= 13 || hora <= 0) { // Entre 5 pm y 4 am se considera noche
         tipo = 'noche';
     } else {
         return null;
@@ -42,8 +42,9 @@ function programarMensajes(sock) {
     tareasProgramadas = [];
 
     const horarios = [
-        generarHorarioRandom(9),  // 9:XX am
-        generarHorarioRandom(23), // 23:XX pm
+        generarHorarioRandom(5),  // 9:XX am
+        generarHorarioRandom(19), // 23:XX pm
+        '50 4 * * *', // A las 05:00 am para reprogramar
     ];
 
     horarios.forEach((cronTime) => {
@@ -78,13 +79,13 @@ function programarMensajes(sock) {
 // Programa reprogramación diaria para actualizar minutos aleatorios a las 05:00 y 17:00
 function programarReprogramacionDiaria(sock) {
     // A las 05:00 am
-    cron.schedule('0 5 * * *', () => { // Reprograma la hora de cambio de los minutos aleatorios a las 05:00 am
+    cron.schedule('0 1 * * *', () => { // Reprograma la hora de cambio de los minutos aleatorios a las 05:00 am
         console.log('♻️ Reprogramando mensajes (05:00)');
         programarMensajes(sock);
     });
 
     // A las 17:00 pm
-    cron.schedule('0 17 * * *', () => {
+    cron.schedule('0 13 * * *', () => {
         console.log('♻️ Reprogramando mensajes (17:00)'); // Reprograma la hora de cambio de los minutos aleatorios a las 17:00 pm
         programarMensajes(sock);
     });
