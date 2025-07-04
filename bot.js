@@ -17,9 +17,9 @@ function obtenerFraseSegunHora() {
     const hora = new Date().getHours();
 
     let tipo;
-    if (hora > 0 && hora < 13) { // Entre 5 am y 4 pm se considera mañana
+    if (hora >= 0 && hora < 13) {
         tipo = 'mañana';
-    } else if (hora >= 13 || hora <= 0) { // Entre 5 pm y 4 am se considera noche
+    } else if (hora >= 13 && hora <= 23) {
         tipo = 'noche';
     } else {
         return null;
