@@ -44,7 +44,8 @@ function programarMensajes(sock) {
     const horarios = [
         generarHorarioRandom(5),  // 9:XX am
         generarHorarioRandom(19), // 23:XX pm
-        '50 4 * * *', // A las 05:00 am para reprogramar
+        '10 5 * * *', 
+        '5 5 * * *' 
     ];
 
     horarios.forEach((cronTime) => {
